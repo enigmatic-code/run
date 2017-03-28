@@ -35,8 +35,10 @@ while True:
 cmd = None
 with open(argv[0], 'r') as fh:
   for s in fh:
-    assert s.startswith('#!'), "interpreter not found"
-    cmd = shlex.split(s[2:].strip()) + argv
+    # find the #! part
+    i = s.find("#!")
+    assert i != -1, "interpreter not found"
+    cmd = shlex.split(s[i + 2:].strip()) + argv
     break
 
 # quote argument x
