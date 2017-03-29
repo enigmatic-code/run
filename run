@@ -1,4 +1,19 @@
 #!/usr/bin/env python -u
+###############################################################################
+#
+# File:         run
+# RCS:          $Header: $
+# Description:  run a file using the command specified on the first line
+# Author:       Jim Randell
+# Created:      Tue Oct 18 13:54:59 2016
+# Modified:     Wed Mar 29 10:40:34 2017 (Jim Randell) jim.randell@gmail.com
+# Language:     Python
+# Package:      N/A
+# Status:       Experimental (Do Not Distribute)
+#
+# (C) Copyright 2017, Jim Randell, all rights reserved.
+#
+###############################################################################
 # -*- mode: Python; py-indent-offset: 2; -*-
 
 # run a file according to the shebang line:
@@ -17,15 +32,37 @@ import sys
 import shlex
 import subprocess
 
+def fprint(f, *args, **kw):
+  print(*args, file=f, **kw)
+
+def usage():
+  fprint(sys.stdout, "run [<opts>] <file> [<args>]")
+  fprint(sys.stdout, "runs <file> with command specified in the shebang line")
+  fprint(sys.stdout, "additional <args> are added to the command")
+  fprint(sys.stdout, "valid opts are:")
+  fprint(sys.stdout, "  -v = verbose, output the command before running it (to stdout")
+  fprint(sys.stdout, "  -x = like -v, but doesn't execute the command")
+  fprint(sys.stdout, "  -t = output elapsed time of the command execution (to stderr)")
+  fprint(sys.stdout, "  -h = output (this) usage information")
+  fprint(sys.stdout)
+  exit()
+
 # file to run
 verbose = 0
 timing = 0
+nox = 0
+shebang = "#!"
 argv = sys.argv[1:]
-while True:
+while argv:
   if argv[0] == '-v':
     verbose = 1
   elif argv[0] == '-t':
     timing = 1
+  elif argv[0] == '-x':
+    nox = 1
+    verbose = 1
+  elif argv[0][0] == '-':
+    usage()
   else:
     break
   argv.pop(0)
@@ -36,9 +73,9 @@ cmd = None
 with open(argv[0], 'r') as fh:
   for s in fh:
     # find the #! part
-    i = s.find("#!")
+    i = s.find(shebang)
     assert i != -1, "interpreter not found"
-    cmd = shlex.split(s[i + 2:].strip()) + argv
+    cmd = shlex.split(s[i + len(shebang):].strip()) + argv
     break
 
 # quote argument x
@@ -52,10 +89,6 @@ def quote(x):
       s.extend(('\\', c))
       q = '"'
   return q + (''.join(s)) + q
-
-
-def fprint(f, *args, **kw):
-  print(*args, file=f, **kw)
 
 
 if cmd:
@@ -76,7 +109,8 @@ if cmd:
     fprint(sys.stdout, ">>> " + ' '.join(quote(x) for x in cmd))
 
   # run the command
-  subprocess.call(cmd)
+  if not nox:
+    subprocess.call(cmd)
 
   if timer:
     t = _timer() - timer
