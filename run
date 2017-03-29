@@ -5,8 +5,8 @@
 # RCS:          $Header: $
 # Description:  run a file using the command specified on the first line
 # Author:       Jim Randell
-# Created:      Tue Oct 18 13:54:59 2016
-# Modified:     Wed Mar 29 10:40:34 2017 (Jim Randell) jim.randell@gmail.com
+# Created:      Tue Oct 14 12:52:59 2016
+# Modified:     Wed Mar 29 11:13:35 2017 (Jim Randell) jim.randell@gmail.com
 # Language:     Python
 # Package:      N/A
 # Status:       Experimental (Do Not Distribute)
@@ -47,7 +47,7 @@ def usage():
   fprint(sys.stdout)
   exit()
 
-# file to run
+# parse options, and determine the file to run
 verbose = 0
 timing = 0
 nox = 0
