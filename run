@@ -6,12 +6,12 @@
 # Description:  run a file using the command specified on the first line
 # Author:       Jim Randell
 # Created:      Tue Oct 14 12:52:59 2016
-# Modified:     Wed Mar 29 11:13:35 2017 (Jim Randell) jim.randell@gmail.com
+# Modified:     Tue Apr 18 22:28:18 2017 (Jim Randell) jim.randell@gmail.com
 # Language:     Python
 # Package:      N/A
 # Status:       Experimental (Do Not Distribute)
 #
-# (C) Copyright 2017, Jim Randell, all rights reserved.
+# (c) Copyright 2017, Jim Randell, all rights reserved.
 #
 ###############################################################################
 # -*- mode: Python; py-indent-offset: 2; -*-
@@ -31,6 +31,7 @@ from __future__ import print_function
 import sys
 import shlex
 import subprocess
+import os
 
 def fprint(f, *args, **kw):
   print(*args, file=f, **kw)
@@ -43,6 +44,7 @@ def usage():
   fprint(sys.stdout, "  -v = verbose, output the command before running it (to stdout")
   fprint(sys.stdout, "  -x = like -v, but doesn't execute the command")
   fprint(sys.stdout, "  -t = output elapsed time of the command execution (to stderr)")
+  fprint(sys.stdout, "  -C[<dir>] = cd to <dir> (or directory of <file>")
   fprint(sys.stdout, "  -h = output (this) usage information")
   fprint(sys.stdout)
   exit()
@@ -51,6 +53,7 @@ def usage():
 verbose = 0
 timing = 0
 nox = 0
+chdir = None
 shebang = "#!"
 argv = sys.argv[1:]
 while argv:
@@ -61,7 +64,9 @@ while argv:
   elif argv[0] == '-x':
     nox = 1
     verbose = 1
-  elif argv[0][0] == '-':
+  elif argv[0].startswith('-C'):
+    chdir = argv[0][2:]
+  elif argv[0].startswith('-'):
     usage()
   else:
     break
@@ -70,18 +75,20 @@ while argv:
 # read the first line from the file
 # #!<cmd> ...
 cmd = None
-with open(argv[0], 'r') as fh:
+path = os.path.abspath(argv[0])
+with open(path, 'r') as fh:
   for s in fh:
     # find the #! part
     i = s.find(shebang)
     assert i != -1, "interpreter not found"
-    cmd = shlex.split(s[i + len(shebang):].strip()) + argv
+    # we could consider just calling the file if there's no interpreter and it's executable
+    cmd = shlex.split(s[i + len(shebang):].strip()) + [path] + argv[1:]
     break
 
 # quote argument x
 def quote(x):
   plain = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_+@:.,/'
-  (s, q) = (list(), '')
+  (s, q) = (list(), ('' if x else '"'))
   for c in x:
     if c in plain:
       s.append(c)
@@ -92,6 +99,12 @@ def quote(x):
 
 
 if cmd:
+
+  if chdir is not None:
+    if not chdir: chdir = os.path.dirname(path)
+    if verbose: fprint(sys.stdout, ">>> chdir " + quote(chdir))
+
+  if verbose: fprint(sys.stdout, ">>> " + ' '.join(quote(x) for x in cmd))
 
   timer = None
   if timing:
@@ -105,12 +118,9 @@ if cmd:
         _timer = time.time
     timer = _timer()
 
-  if verbose:
-    fprint(sys.stdout, ">>> " + ' '.join(quote(x) for x in cmd))
-
   # run the command
   if not nox:
-    subprocess.call(cmd)
+    subprocess.call(cmd, cwd=chdir)
 
   if timer:
     t = _timer() - timer
