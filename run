@@ -6,7 +6,7 @@
 # Description:  run a file using the command specified on the first line
 # Author:       Jim Randell
 # Created:      Tue Oct 14 12:52:59 2016
-# Modified:     Tue Apr 18 22:28:18 2017 (Jim Randell) jim.randell@gmail.com
+# Modified:     Fri Feb 23 17:05:43 2018 (Jim Randell) jim.randell@gmail.com
 # Language:     Python
 # Package:      N/A
 # Status:       Experimental (Do Not Distribute)
@@ -45,6 +45,7 @@ def usage():
   fprint(sys.stdout, "  -x = like -v, but doesn't execute the command")
   fprint(sys.stdout, "  -t = output elapsed time of the command execution (to stderr)")
   fprint(sys.stdout, "  -C[<dir>] = cd to <dir> (or directory of <file>")
+  fprint(sys.stdout, "  -s[<file>] = send <file> to stdin of command")
   fprint(sys.stdout, "  -h = output (this) usage information")
   fprint(sys.stdout)
   exit()
@@ -54,23 +55,31 @@ verbose = 0
 timing = 0
 nox = 0
 chdir = None
+stdin = None
 shebang = "#!"
 argv = sys.argv[1:]
-while argv:
-  if argv[0] == '-v':
-    verbose = 1
-  elif argv[0] == '-t':
-    timing = 1
-  elif argv[0] == '-x':
-    nox = 1
-    verbose = 1
-  elif argv[0].startswith('-C'):
-    chdir = argv[0][2:]
-  elif argv[0].startswith('-'):
-    usage()
-  else:
-    break
-  argv.pop(0)
+
+def get_options(argv):
+  global verbose, timing, nox, chdir, stdin
+  while argv:
+    if argv[0] == '-v':
+      verbose = 1
+    elif argv[0] == '-t':
+      timing = 1
+    elif argv[0] == '-x':
+      nox = 1
+      verbose = 1
+    elif argv[0].startswith('-C'):
+      chdir = argv[0][2:]
+    elif argv[0].startswith('-s'):
+      stdin = argv[0][2:]
+    elif argv[0].startswith('-'):
+      usage()
+    else:
+      break
+    argv.pop(0)
+
+get_options(argv)
 
 # read the first line from the file
 # #!<cmd> ...
@@ -81,11 +90,20 @@ with open(path, 'r') as fh:
     # find the #! part
     i = s.find(shebang)
     assert i != -1, "interpreter not found"
-    # we could consider just calling the file if there's no interpreter and it's executable
-    cmd = shlex.split(s[i + len(shebang):].strip()) + [path] + argv[1:]
+    # extract the command (as a string)
+    cmd = s[i + len(shebang):].strip()
+    cmd = shlex.split(cmd)
+    get_options(cmd)
+    # turn it into a list: <cmd> <file> <arg> ...
+    if stdin is None: cmd.append(path)
+    cmd.extend(argv[1:])
     break
 
+if chdir is not None and not chdir: chdir = os.path.dirname(path)
+if stdin is not None and not stdin: stdin = path
+
 # quote argument x
+# (Python 3 has shlex.quote())
 def quote(x):
   plain = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_+@:.,/'
   (s, q) = (list(), ('' if x else '"'))
@@ -100,11 +118,8 @@ def quote(x):
 
 if cmd:
 
-  if chdir is not None:
-    if not chdir: chdir = os.path.dirname(path)
-    if verbose: fprint(sys.stdout, ">>> chdir " + quote(chdir))
-
-  if verbose: fprint(sys.stdout, ">>> " + ' '.join(quote(x) for x in cmd))
+  if verbose and chdir: fprint(sys.stdout, ">>> chdir " + quote(chdir))
+  if verbose: fprint(sys.stdout, ">>> " + ' '.join(quote(x) for x in cmd) + (" [stdin=" + stdin + "]" if stdin else ""))
 
   timer = None
   if timing:
@@ -120,13 +135,25 @@ if cmd:
 
   # run the command
   if not nox:
-    subprocess.call(cmd, cwd=chdir)
+    if stdin:
+      with open(stdin, 'r') as fh:
+        subprocess.call(cmd, cwd=chdir, stdin=fh)
+    else:
+      subprocess.call(cmd, cwd=chdir)
 
   if timer:
     t = _timer() - timer
-    msg = "[timing] elapsed time: {t:.7f}s".format(t=t)
+    msg = "[{name}] elapsed time: {t:.7f}s".format(t=t, name=os.path.basename(argv[0]))
     u = 's'
     if t < 1.0: (t, u) = (1000 * t, 'ms')
     if t < 1.0: (t, u) = (1000 * t, 'us')
     msg += " ({t:.2f}{u})".format(t=t, u=u)
     fprint(sys.stderr, msg)
+
+#
+# possible future enhancements:
+#
+# * we could consider just calling the file if there's no interpreter and it's executable
+#
+# * allow some way of mentioning {file}, {args} in the interpreter (otherwise add them to the end)
+#
