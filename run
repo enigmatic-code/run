@@ -6,7 +6,7 @@
 # Description:  run a file using the command specified on the first line
 # Author:       Jim Randell
 # Created:      Tue Oct 14 12:52:59 2016
-# Modified:     Fri Feb 23 17:05:43 2018 (Jim Randell) jim.randell@gmail.com
+# Modified:     Tue Jul 10 10:49:04 2018 (Jim Randell) jim.randell@gmail.com
 # Language:     Python
 # Package:      N/A
 # Status:       Experimental (Do Not Distribute)
@@ -86,18 +86,17 @@ get_options(argv)
 cmd = None
 path = os.path.abspath(argv[0])
 with open(path, 'r') as fh:
-  for s in fh:
-    # find the #! part
-    i = s.find(shebang)
-    assert i != -1, "interpreter not found"
-    # extract the command (as a string)
-    cmd = s[i + len(shebang):].strip()
-    cmd = shlex.split(cmd)
-    get_options(cmd)
-    # turn it into a list: <cmd> <file> <arg> ...
-    if stdin is None: cmd.append(path)
-    cmd.extend(argv[1:])
-    break
+  s = next(fh)
+  # find the #! part
+  i = s.find(shebang)
+  assert i != -1, "interpreter not found"
+  # extract the command (as a string)
+  cmd = s[i + len(shebang):].strip()
+  cmd = shlex.split(cmd)
+  get_options(cmd)
+  # turn it into a list: <cmd> <file> <arg> ...
+  if stdin is None: cmd.append(path)
+  cmd.extend(argv[1:])
 
 if chdir is not None and not chdir: chdir = os.path.dirname(path)
 if stdin is not None and not stdin: stdin = path
