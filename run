@@ -6,7 +6,7 @@
 # Description:  run a file using the command specified on the first line
 # Author:       Jim Randell
 # Created:      Tue Oct 14 12:52:59 2016
-# Modified:     Tue Jul 10 10:49:04 2018 (Jim Randell) jim.randell@gmail.com
+# Modified:     Thu Feb  7 14:47:09 2019 (Jim Randell) jim.randell@gmail.com
 # Language:     Python
 # Package:      N/A
 # Status:       Experimental (Do Not Distribute)
@@ -40,12 +40,13 @@ def usage():
   fprint(sys.stdout, "run [<opts>] <file> [<args>]")
   fprint(sys.stdout, "runs <file> with command specified in the shebang line")
   fprint(sys.stdout, "additional <args> are added to the command")
-  fprint(sys.stdout, "valid opts are:")
+  fprint(sys.stdout, "valid opts are: (defaults from $RUN_OPT)")
   fprint(sys.stdout, "  -v = verbose, output the command before running it (to stdout")
   fprint(sys.stdout, "  -x = like -v, but doesn't execute the command")
   fprint(sys.stdout, "  -t = output elapsed time of the command execution (to stderr)")
   fprint(sys.stdout, "  -C[<dir>] = cd to <dir> (or directory of <file>")
   fprint(sys.stdout, "  -s[<file>] = send <file> to stdin of command")
+  fprint(sys.stdout, "  -c = caffeinate (macOS only)")
   fprint(sys.stdout, "  -h = output (this) usage information")
   fprint(sys.stdout)
   exit()
@@ -56,28 +57,42 @@ timing = 0
 nox = 0
 chdir = None
 stdin = None
+caffeinate = 0
 shebang = "#!"
 argv = sys.argv[1:]
 
 def get_options(argv):
-  global verbose, timing, nox, chdir, stdin
+  global verbose, timing, nox, chdir, stdin, caffeinate
   while argv:
-    if argv[0] == '-v':
+    v = argv.pop(0)
+    if v == '--':
+      break
+    elif v == '-v':
       verbose = 1
-    elif argv[0] == '-t':
+    elif v == '-t':
       timing = 1
-    elif argv[0] == '-x':
+    elif v == '-x':
       nox = 1
       verbose = 1
-    elif argv[0].startswith('-C'):
-      chdir = argv[0][2:]
-    elif argv[0].startswith('-s'):
-      stdin = argv[0][2:]
-    elif argv[0].startswith('-'):
+    elif v == '-c':
+      caffeinate = 1
+    elif v.startswith('-C'):
+      chdir = v[2:]
+    elif v.startswith('-s'):
+      stdin = v[2:]
+    elif v.startswith('-'):
       usage()
     else:
+      argv.insert(0, v)
       break
-    argv.pop(0)
+
+if not argv:
+  usage()
+else:
+  if not argv[0].startswith('-'):
+    opts = os.getenv("RUN_OPT")
+    if opts is not None:
+      argv = opts.split() + argv
 
 get_options(argv)
 
@@ -116,6 +131,8 @@ def quote(x):
 
 
 if cmd:
+
+  if caffeinate: cmd.insert(0, 'caffeinate')
 
   if verbose and chdir: fprint(sys.stdout, ">>> chdir " + quote(chdir))
   if verbose: fprint(sys.stdout, ">>> " + ' '.join(quote(x) for x in cmd) + (" [stdin=" + stdin + "]" if stdin else ""))
