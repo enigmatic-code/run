@@ -6,7 +6,7 @@
 # Description:  run a file using the command specified on the first line
 # Author:       Jim Randell
 # Created:      Tue Oct 14 12:52:59 2016
-# Modified:     Thu Feb  7 14:47:09 2019 (Jim Randell) jim.randell@gmail.com
+# Modified:     Thu May 23 13:59:32 2019 (Jim Randell) jim.randell@gmail.com
 # Language:     Python
 # Package:      N/A
 # Status:       Experimental (Do Not Distribute)
@@ -46,23 +46,27 @@ def usage():
   fprint(sys.stdout, "  -t = output elapsed time of the command execution (to stderr)")
   fprint(sys.stdout, "  -C[<dir>] = cd to <dir> (or directory of <file>")
   fprint(sys.stdout, "  -s[<file>] = send <file> to stdin of command")
+  fprint(sys.stdout, "  -i[<cmd>] = use <cmd> instead of shebang")
+  fprint(sys.stdout, "  -n = notify on completion")
   fprint(sys.stdout, "  -c = caffeinate (macOS only)")
   fprint(sys.stdout, "  -h = output (this) usage information")
   fprint(sys.stdout)
   exit()
 
 # parse options, and determine the file to run
+cmd = None
 verbose = 0
 timing = 0
 nox = 0
 chdir = None
 stdin = None
+beep = None
 caffeinate = 0
 shebang = "#!"
 argv = sys.argv[1:]
 
 def get_options(argv):
-  global verbose, timing, nox, chdir, stdin, caffeinate
+  global cmd, verbose, timing, nox, chdir, stdin, beep, caffeinate
   while argv:
     v = argv.pop(0)
     if v == '--':
@@ -74,12 +78,16 @@ def get_options(argv):
     elif v == '-x':
       nox = 1
       verbose = 1
+    elif v.startswith('-n'):
+      beep = v[2:]
     elif v == '-c':
       caffeinate = 1
     elif v.startswith('-C'):
       chdir = v[2:]
     elif v.startswith('-s'):
       stdin = v[2:]
+    elif v.startswith('-i'):
+      cmd = v[2:]
     elif v.startswith('-'):
       usage()
     else:
@@ -96,22 +104,24 @@ else:
 
 get_options(argv)
 
-# read the first line from the file
-# #!<cmd> ...
-cmd = None
 path = os.path.abspath(argv[0])
-with open(path, 'r') as fh:
-  s = next(fh)
-  # find the #! part
-  i = s.find(shebang)
-  assert i != -1, "interpreter not found"
-  # extract the command (as a string)
-  cmd = s[i + len(shebang):].strip()
-  cmd = shlex.split(cmd)
-  get_options(cmd)
-  # turn it into a list: <cmd> <file> <arg> ...
-  if stdin is None: cmd.append(path)
-  cmd.extend(argv[1:])
+
+if cmd is None:
+  # read the first line from the file
+  # #!<cmd> ...
+  with open(path, 'r') as fh:
+    s = next(fh)
+    # find the #! part
+    i = s.find(shebang)
+    assert i != -1, "interpreter not found"
+    # extract the command (as a string)
+    cmd = s[i + len(shebang):].strip()
+
+cmd = shlex.split(cmd)
+get_options(cmd)
+# turn it into a list: <cmd> <file> <arg> ...
+if stdin is None: cmd.append(path)
+cmd.extend(argv[1:])
 
 if chdir is not None and not chdir: chdir = os.path.dirname(path)
 if stdin is not None and not stdin: stdin = path
@@ -165,6 +175,14 @@ if cmd:
     if t < 1.0: (t, u) = (1000 * t, 'us')
     msg += " ({t:.2f}{u})".format(t=t, u=u)
     fprint(sys.stderr, msg)
+
+  if beep is not None:
+    if beep:
+      # run it as a command
+      beep = shlex.split(beep)      
+      subprocess.call(beep)
+    else:
+      fprint(sys.stderr, "\007", end="")
 
 #
 # possible future enhancements:
