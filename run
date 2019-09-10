@@ -6,7 +6,7 @@
 # Description:  run a file using the command specified on the first line
 # Author:       Jim Randell
 # Created:      Tue Oct 14 12:52:59 2016
-# Modified:     Thu May 23 13:59:32 2019 (Jim Randell) jim.randell@gmail.com
+# Modified:     Tue Sep 10 16:38:35 2019 (Jim Randell) jim.randell@gmail.com
 # Language:     Python
 # Package:      N/A
 # Status:       Experimental (Do Not Distribute)
@@ -44,7 +44,7 @@ def usage():
   fprint(sys.stdout, "  -v = verbose, output the command before running it (to stdout")
   fprint(sys.stdout, "  -x = like -v, but doesn't execute the command")
   fprint(sys.stdout, "  -t = output elapsed time of the command execution (to stderr)")
-  fprint(sys.stdout, "  -C[<dir>] = cd to <dir> (or directory of <file>")
+  fprint(sys.stdout, "  -C[<dir>] = cd to <dir> (or directory of <file>)")
   fprint(sys.stdout, "  -s[<file>] = send <file> to stdin of command")
   fprint(sys.stdout, "  -i[<cmd>] = use <cmd> instead of shebang")
   fprint(sys.stdout, "  -n = notify on completion")
