@@ -6,7 +6,7 @@
 # Description:  run a file using the command specified on the first line
 # Author:       Jim Randell
 # Created:      Tue Oct 14 12:52:59 2016
-# Modified:     Tue Sep 10 16:38:35 2019 (Jim Randell) jim.randell@gmail.com
+# Modified:     Mon Jul 27 10:50:50 2020 (Jim Randell) jim.randell@gmail.com
 # Language:     Python
 # Package:      N/A
 # Status:       Experimental (Do Not Distribute)
@@ -41,7 +41,7 @@ def usage():
   fprint(sys.stdout, "runs <file> with command specified in the shebang line")
   fprint(sys.stdout, "additional <args> are added to the command")
   fprint(sys.stdout, "valid opts are: (defaults from $RUN_OPT)")
-  fprint(sys.stdout, "  -v = verbose, output the command before running it (to stdout")
+  fprint(sys.stdout, "  -v = verbose, output the command before running it (to stderr")
   fprint(sys.stdout, "  -x = like -v, but doesn't execute the command")
   fprint(sys.stdout, "  -t = output elapsed time of the command execution (to stderr)")
   fprint(sys.stdout, "  -C[<dir>] = cd to <dir> (or directory of <file>)")
@@ -58,6 +58,7 @@ cmd = None
 verbose = 0
 timing = 0
 nox = 0
+prompt = 0
 chdir = None
 stdin = None
 beep = None
@@ -66,7 +67,7 @@ shebang = "#!"
 argv = sys.argv[1:]
 
 def get_options(argv):
-  global cmd, verbose, timing, nox, chdir, stdin, beep, caffeinate
+  global cmd, verbose, timing, nox, chdir, stdin, beep, caffeinate, prompt
   while argv:
     v = argv.pop(0)
     if v == '--':
@@ -77,7 +78,8 @@ def get_options(argv):
       timing = 1
     elif v == '-x':
       nox = 1
-      verbose = 1
+    elif v == '-p':
+      prompt = 1
     elif v.startswith('-n'):
       beep = v[2:]
     elif v == '-c':
@@ -93,6 +95,7 @@ def get_options(argv):
     else:
       argv.insert(0, v)
       break
+  if nox or prompt: verbose = 1
 
 if not argv:
   usage()
@@ -113,9 +116,14 @@ if cmd is None:
     s = next(fh)
     # find the #! part
     i = s.find(shebang)
-    assert i != -1, "interpreter not found"
-    # extract the command (as a string)
-    cmd = s[i + len(shebang):].strip()
+    if i != -1:
+      # extract the command (as a string)
+      cmd = s[i + len(shebang):].strip()
+    elif os.path.isfile(path) and os.access(path, os.X_OK):
+      # if there is no interpreter, but the file is executable
+      cmd = ""
+    else:
+      raise SystemExit("run: interpreter not found")
 
 cmd = shlex.split(cmd)
 get_options(cmd)
@@ -145,7 +153,12 @@ if cmd:
   if caffeinate: cmd.insert(0, 'caffeinate')
 
   if verbose and chdir: fprint(sys.stdout, ">>> chdir " + quote(chdir))
-  if verbose: fprint(sys.stdout, ">>> " + ' '.join(quote(x) for x in cmd) + (" [stdin=" + stdin + "]" if stdin else ""))
+  if verbose: fprint(sys.stderr, ">>> " + ' '.join(quote(x) for x in cmd) + (" [stdin=" + stdin + "]" if stdin else ""))
+
+  if prompt:
+    if sys.version_info[0] > 2: raw_input = input
+    s = raw_input(">>> proceed? [Y/n] > ").strip()
+    if s.lower().startswith("n"): exit()
 
   timer = None
   if timing:
