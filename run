@@ -6,7 +6,7 @@
 # Description:  run a file using the command specified on the first line
 # Author:       Jim Randell
 # Created:      Tue Oct 14 12:52:59 2016
-# Modified:     Tue Oct 13 08:25:45 2020 (Jim Randell) jim.randell@gmail.com
+# Modified:     Fri Mar  5 21:10:33 2021 (Jim Randell) jim.randell@gmail.com
 # Language:     Python
 # Package:      N/A
 # Status:       Experimental (Do Not Distribute)
@@ -134,11 +134,24 @@ if cmd is None:
     else:
       raise SystemExit("run: interpreter not found")
 
+# replace @var in cmd
+replace = ('@' in cmd)
+if replace:
+  import re
+  def fn(x):
+    if x == 'path': return path
+    if x == 'args': return ' '.join(argv[1:])
+    if x in os.environ: return os.environ[x]
+    fprintf(sys.stderr, "run: variable @{x} not found".format(x=x))
+    return '@' + x
+  cmd = re.sub(r'@(\w+)', (lambda m: fn(m.group(1))), cmd)
+
 cmd = shlex.split(cmd)
 get_options(cmd)
-# turn it into a list: <cmd> <file> <arg> ...
-if stdin is None: cmd.append(path)
-cmd.extend(argv[1:])
+
+if not replace:
+  if stdin is None: cmd.append(path)
+  cmd.extend(argv[1:])
 
 if chdir is not None and not chdir: chdir = os.path.dirname(path)
 if stdin is not None and not stdin: stdin = path
@@ -173,14 +186,10 @@ if cmd:
   if timing:
     import time
     _timer = None
-    for fn in [ 'process_time', 'perf_counter' ]:
+    # choose an elapsed time function
+    for fn in [ 'perf_counter', ('clock' if sys.platform == 'win32' else 'time')]:
       _timer = getattr(time, fn, None)
       if _timer is not None: break
-    if _timer is None:
-      if sys.platform == 'win32':
-        _timer = time.clock
-      else:
-        _timer = time.time
     timer = _timer()
 
   # run the command
@@ -207,9 +216,3 @@ if cmd:
       subprocess.call(beep)
     else:
       fprint(sys.stderr, "\007", end="")
-
-#
-# possible future enhancements:
-#
-# * allow some way of mentioning {file}, {args} in the interpreter (otherwise add them to the end)
-#
