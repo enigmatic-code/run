@@ -1,4 +1,4 @@
-#!/usr/bin/env -S python -u
+#!/usr/bin/env -S python3 -u
 ###############################################################################
 #
 # File:         run
@@ -6,7 +6,7 @@
 # Description:  run a file using the command specified on the first line
 # Author:       Jim Randell
 # Created:      Tue Oct 14 12:52:59 2016
-# Modified:     Fri Mar  5 21:10:33 2021 (Jim Randell) jim.randell@gmail.com
+# Modified:     Sat Feb 18 13:30:19 2023 (Jim Randell) jim.randell@gmail.com
 # Language:     Python
 # Package:      N/A
 # Status:       Experimental (Do Not Distribute)
@@ -14,7 +14,7 @@
 # (c) Copyright 2017, Jim Randell, all rights reserved.
 #
 ###############################################################################
-# -*- mode: Python; py-indent-offset: 2; -*-
+# -*- mode: Python; python-indent-offset: 2; -*-
 
 # run a file according to the shebang line:
 #
@@ -41,8 +41,9 @@ def usage():
   fprint(sys.stdout, "runs <file> with command specified in the shebang line")
   fprint(sys.stdout, "additional <args> are added to the command")
   fprint(sys.stdout, "valid opts are: (defaults from $RUN_OPT)")
-  fprint(sys.stdout, "  -v = verbose, output the command before running it (to stderr")
+  fprint(sys.stdout, "  -v = verbose, output the command before running it (to stderr)")
   fprint(sys.stdout, "  -x = like -v, but doesn't execute the command")
+  fprint(sys.stdout, "  -q = turn off verbose")
   fprint(sys.stdout, "  -t = output elapsed time of the command execution (to stderr)")
   fprint(sys.stdout, "  -C[<dir>] = cd to <dir> (or directory of <file>)")
   fprint(sys.stdout, "  -s[<file>] = send <file> to stdin of command")
@@ -79,6 +80,8 @@ def get_options(argv):
       timing = 1
     elif v == '-x':
       nox = 1
+    elif v == '-q':
+      verbose = 0
     elif v == '-p':
       prompt = 1
     elif v.startswith('-n'):
@@ -212,7 +215,7 @@ if cmd:
   if beep is not None:
     if beep:
       # run it as a command
-      beep = shlex.split(beep)      
+      beep = shlex.split(beep)
       subprocess.call(beep)
     else:
       fprint(sys.stderr, "\007", end="")
