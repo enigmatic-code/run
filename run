@@ -6,7 +6,7 @@
 # Description:  run a file using the command specified on the first line
 # Author:       Jim Randell
 # Created:      Tue Oct 14 12:52:59 2016
-# Modified:     Sat Feb 18 13:30:19 2023 (Jim Randell) jim.randell@gmail.com
+# Modified:     Fri Jul  7 13:14:28 2023 (Jim Randell) jim.randell@gmail.com
 # Language:     Python
 # Package:      N/A
 # Status:       Experimental (Do Not Distribute)
@@ -45,6 +45,7 @@ def usage():
   fprint(sys.stdout, "  -x = like -v, but doesn't execute the command")
   fprint(sys.stdout, "  -q = turn off verbose")
   fprint(sys.stdout, "  -t = output elapsed time of the command execution (to stderr)")
+  fprint(sys.stdout, "  -R = redirect stderr to stdout")
   fprint(sys.stdout, "  -C[<dir>] = cd to <dir> (or directory of <file>)")
   fprint(sys.stdout, "  -s[<file>] = send <file> to stdin of command")
   fprint(sys.stdout, "  -i[<cmd>] = use <cmd> instead of shebang")
@@ -59,6 +60,7 @@ cmd = None
 verbose = 0
 timing = 0
 nox = 0
+redir = 0
 prompt = 0
 page = None
 chdir = None
@@ -69,7 +71,7 @@ shebang = "#!"
 argv = sys.argv[1:]
 
 def get_options(argv):
-  global cmd, verbose, timing, nox, chdir, stdin, beep, caffeinate, prompt
+  global cmd, verbose, timing, nox, redir, chdir, stdin, beep, caffeinate, prompt
   while argv:
     v = argv.pop(0)
     if v == '--':
@@ -78,6 +80,8 @@ def get_options(argv):
       verbose = 1
     elif v == '-t':
       timing = 1
+    elif v == '-R':
+      redir = 1
     elif v == '-x':
       nox = 1
     elif v == '-q':
@@ -174,6 +178,8 @@ def quote(x):
 
 
 if cmd:
+
+  if redir: sys.stderr = sys.stdout
 
   if caffeinate: cmd.insert(0, 'caffeinate')
 
