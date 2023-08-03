@@ -6,7 +6,7 @@
 # Description:  run a file using the command specified on the first line
 # Author:       Jim Randell
 # Created:      Tue Oct 14 12:52:59 2016
-# Modified:     Fri Jul  7 13:14:28 2023 (Jim Randell) jim.randell@gmail.com
+# Modified:     Thu Aug  3 21:17:10 2023 (Jim Randell) jim.randell@gmail.com
 # Language:     Python
 # Package:      N/A
 # Status:       Experimental (Do Not Distribute)
@@ -148,8 +148,12 @@ if replace:
   def fn(x):
     if x == 'path': return path
     if x == 'args': return ' '.join(argv[1:])
+    if x == 'dir': return os.path.dirname(path)
+    if x == 'file': return os.path.basename(path)
+    if x == 'name': return os.path.basename(os.path.splitext(path)[0])
+    if x == 'ext': return os.path.splitext(path)[1]
     if x in os.environ: return os.environ[x]
-    fprintf(sys.stderr, "run: variable @{x} not found".format(x=x))
+    fprint(sys.stderr, "run: variable @{x} not found".format(x=x))
     return '@' + x
   cmd = re.sub(r'@(\w+)', (lambda m: fn(m.group(1))), cmd)
 
