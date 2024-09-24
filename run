@@ -6,7 +6,7 @@
 # Description:  run a file using the command specified on the first line
 # Author:       Jim Randell
 # Created:      Tue Oct 14 12:52:59 2016
-# Modified:     Thu Aug  3 21:17:10 2023 (Jim Randell) jim.randell@gmail.com
+# Modified:     Tue Sep 24 17:14:52 2024 (Jim Randell) jim.randell@gmail.com
 # Language:     Python
 # Package:      N/A
 # Status:       Experimental (Do Not Distribute)
@@ -142,19 +142,32 @@ if cmd is None:
       raise SystemExit("run: interpreter not found")
 
 # replace @var in cmd
+# @path = full path of file
+# - @dir  = directory
+# - @file = filename
+# - @name = filename without extension
+# - @ext  = extension
+# - @stem = path without extension
+# @args  = space separated arguments
+# @VAR = environment variable $VAR
 replace = ('@' in cmd)
 if replace:
-  import re
+  (stem, ext) = os.path.splitext(path)
   def fn(x):
-    if x == 'path': return path
+    # args
     if x == 'args': return ' '.join(argv[1:])
-    if x == 'dir': return os.path.dirname(path)
+    # path components
+    if x == 'path': return path
+    if x == 'dir' : return os.path.dirname(path)
     if x == 'file': return os.path.basename(path)
-    if x == 'name': return os.path.basename(os.path.splitext(path)[0])
-    if x == 'ext': return os.path.splitext(path)[1]
+    if x == 'name': return os.path.basename(stem)
+    if x == 'ext' : return (ext[1:] if ext else ''),
+    if x == 'stem': return stem
+    # environment variables
     if x in os.environ: return os.environ[x]
     fprint(sys.stderr, "run: variable @{x} not found".format(x=x))
     return '@' + x
+  import re
   cmd = re.sub(r'@(\w+)', (lambda m: fn(m.group(1))), cmd)
 
 cmd = shlex.split(cmd)
