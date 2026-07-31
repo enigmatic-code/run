@@ -6,7 +6,7 @@
 # Description:  run a file using the command specified on the first line
 # Author:       Jim Randell
 # Created:      Tue Oct 14 12:52:59 2016
-# Modified:     Tue Sep 24 17:14:52 2024 (Jim Randell) jim.randell@gmail.com
+# Modified:     Fri Jul 31 10:27:04 2026 (Jim Randell) jim.randell@gmail.com
 # Language:     Python
 # Package:      N/A
 # Status:       Experimental (Do Not Distribute)
@@ -51,6 +51,7 @@ def usage():
   fprint(sys.stdout, "  -i[<cmd>] = use <cmd> instead of shebang")
   fprint(sys.stdout, "  -n = notify on completion")
   fprint(sys.stdout, "  -c = caffeinate (macOS only)")
+  fprint(sys.stdout, "  -I = ignore $RUN_OPT")
   fprint(sys.stdout, "  -h = output (this) usage information")
   fprint(sys.stdout)
   exit()
@@ -67,11 +68,12 @@ chdir = None
 stdin = None
 beep = None
 caffeinate = 0
+ignore = 0
 shebang = "#!"
 argv = sys.argv[1:]
 
 def get_options(argv):
-  global cmd, verbose, timing, nox, redir, chdir, stdin, beep, caffeinate, prompt
+  global cmd, verbose, timing, nox, redir, chdir, stdin, beep, caffeinate, ignore, prompt
   while argv:
     v = argv.pop(0)
     if v == '--':
@@ -92,6 +94,8 @@ def get_options(argv):
       beep = v[2:]
     elif v == '-c':
       caffeinate = 1
+    elif v == '-I':
+      ignore = 1
     elif v.startswith('-C'):
       chdir = v[2:]
     elif v.startswith('-s'):
@@ -107,7 +111,7 @@ def get_options(argv):
 
 if not argv:
   usage()
-else:
+elif ('-I' not in argv):  # check before we read the args
   # add arguments from ${RUN_OPT}
   opts = os.getenv("RUN_OPT")
   if opts is not None:
@@ -126,9 +130,9 @@ get_options(argv)
 path = os.path.abspath(argv[0])
 
 if cmd is None:
-  # read the first line from the file
+  # read the first line from the file (as raw data)
   # #!<cmd> ...
-  with open(path, 'r') as fh:
+  with open(path, 'r', encoding=None, errors='ignore') as fh:
     s = next(fh)
     # find the #! part
     i = s.find(shebang)
@@ -141,16 +145,16 @@ if cmd is None:
     else:
       raise SystemExit("run: interpreter not found")
 
-# replace @var in cmd
-# @path = full path of file
-# - @dir  = directory
-# - @file = filename
-# - @name = filename without extension
-# - @ext  = extension
-# - @stem = path without extension
-# @args  = space separated arguments
-# @VAR = environment variable $VAR
-replace = ('@' in cmd)
+# replace {var} in cmd
+# {path} = full path of file
+# - {dir}  = directory
+# - {file} = filename
+# - {name} = filename without extension
+# - {ext}  = extension (including .)
+# - {stem} = path without extension
+# {args}  = space separated arguments
+# {VAR} = environment variable $VAR
+replace = ('{' in cmd)
 if replace:
   (stem, ext) = os.path.splitext(path)
   def fn(x):
@@ -161,14 +165,14 @@ if replace:
     if x == 'dir' : return os.path.dirname(path)
     if x == 'file': return os.path.basename(path)
     if x == 'name': return os.path.basename(stem)
-    if x == 'ext' : return (ext[1:] if ext else ''),
+    if x == 'ext' : return ext,
     if x == 'stem': return stem
     # environment variables
     if x in os.environ: return os.environ[x]
-    fprint(sys.stderr, "run: variable @{x} not found".format(x=x))
-    return '@' + x
+    fprint(sys.stderr, "run: variable {{{x}}} not found".format(x=x))
+    return '{' + x + '}'
   import re
-  cmd = re.sub(r'@(\w+)', (lambda m: fn(m.group(1))), cmd)
+  cmd = re.sub(r'\{(\w+)\}', (lambda m: fn(m.group(1))), cmd)
 
 cmd = shlex.split(cmd)
 get_options(cmd)
@@ -183,15 +187,18 @@ if stdin is not None and not stdin: stdin = path
 # quote argument x
 # (Python 3 has shlex.quote())
 def quote(x):
-  plain = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_+@:.,/='
-  (s, q) = (list(), ('' if x else '"'))
+  plain = ' abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_+@:.,/='
+  (s, q) = (list(), ('' if (x and ' ' not in x) else '"'))
   for c in x:
     if c in plain:
       s.append(c)
     else:
       s.extend(('\\', c))
       q = '"'
-  return q + (''.join(s)) + q
+  if q:
+    s.insert(0, q)
+    s.append(q)
+  return str.join('', s)
 
 
 if cmd:
